@@ -1,5 +1,5 @@
 """
-SQLAlchemy 数据模型定义
+数据库模型
 """
 
 import uuid
@@ -8,13 +8,11 @@ from typing import Dict, List, Any, Optional
 
 from sqlalchemy import (
     Column, String, Integer, Float, Text, Boolean, 
-    DateTime, JSON, ForeignKey, Index, UniqueConstraint,
-    text
+    DateTime, JSON, ForeignKey, Index, UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, declarative_base
 
-# 声明基类
 Base = declarative_base()
 
 
@@ -28,7 +26,7 @@ class Task(Base):
     file_size = Column(Integer, nullable=False)
     
     # 状态相关
-    status = Column(String(50), nullable=False, default="pending")
+    status = Column(String(50), nullable=False, default="pending")  # pending, processing, completed, failed
     progress = Column(Float, default=0.0)
     message = Column(Text, nullable=True)
     
@@ -47,18 +45,13 @@ class Task(Base):
     metadata = Column(JSON, nullable=True, default=dict)
     
     # 时间戳
-    created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"),
-                       onupdate=text("CURRENT_TIMESTAMP"))
-    started_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     failed_at = Column(DateTime, nullable=True)
     
     # 关系
-    agent_statuses = relationship("AgentStatus", back_populates="task", 
-                                 cascade="all, delete-orphan", lazy="selectin")
-    code_files = relationship("CodeFile", back_populates="task", 
-                             cascade="all, delete-orphan", lazy="selectin")
+    agent_statuses = relationship("AgentStatus", back_populates="task", cascade="all, delete-orphan")
     
     # 索引
     __table_args__ = (
@@ -66,11 +59,24 @@ class Task(Base):
         Index("idx_tasks_created_at", "created_at"),
         Index("idx_tasks_completed_at", "completed_at"),
         Index("idx_tasks_file_name", "file_name"),
-        Index("idx_tasks_quality_score", "quality_score"),
     )
     
-    def __repr__(self):
-        return f"<Task(id={self.id}, file={self.file_name}, status={self.status})>"
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "file_name": self.file_name,
+            "file_path": self.file_path,
+            "file_size": self.file_size,
+            "status": self.status,
+            "progress": self.progress,
+            "message": self.message,
+            "quality_score": self.quality_score,
+            "saved_file_path": self.saved_file_path,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
 
 
 class AgentStatus(Base):
@@ -79,18 +85,17 @@ class AgentStatus(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
-    agent_name = Column(String(50), nullable=False)
+    agent_name = Column(String(50), nullable=False)  # Architect, Reviewer, Optimizer, User_Proxy
     
     # 状态信息
-    status = Column(String(50), nullable=False, default="idle")
+    status = Column(String(50), nullable=False)  # idle, processing, completed, error
     message = Column(Text, nullable=True)
     progress = Column(Float, default=0.0)
     result = Column(JSON, nullable=True)
     
     # 时间戳
-    created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"),
-                       onupdate=text("CURRENT_TIMESTAMP"))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # 关系
     task = relationship("Task", back_populates="agent_statuses")
@@ -103,8 +108,19 @@ class AgentStatus(Base):
         UniqueConstraint("task_id", "agent_name", name="uq_task_agent"),
     )
     
-    def __repr__(self):
-        return f"<AgentStatus(task={self.task_id}, agent={self.agent_name}, status={self.status})>"
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "agent_name": self.agent_name,
+            "status": self.status,
+            "message": self.message,
+            "progress": self.progress,
+            "result": self.result,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class CodeFile(Base):
@@ -118,7 +134,7 @@ class CodeFile(Base):
     file_type = Column(String(10), nullable=False)  # original, fixed
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
-    file_hash = Column(String(64), nullable=False)
+    file_hash = Column(String(64), nullable=False)  # MD5 hash
     file_size = Column(Integer, nullable=False)
     line_count = Column(Integer, nullable=True)
     
@@ -129,12 +145,11 @@ class CodeFile(Base):
     quality_score = Column(Float, nullable=True)
     
     # 时间戳
-    created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    updated_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"),
-                       onupdate=text("CURRENT_TIMESTAMP"))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # 关系
-    task = relationship("Task", back_populates="code_files")
+    task = relationship("Task", foreign_keys=[task_id])
     
     # 索引
     __table_args__ = (
@@ -144,8 +159,24 @@ class CodeFile(Base):
         Index("idx_code_files_created_at", "created_at"),
     )
     
-    def __repr__(self):
-        return f"<CodeFile(name={self.file_name}, type={self.file_type})>"
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "file_type": self.file_type,
+            "file_name": self.file_name,
+            "file_path": self.file_path,
+            "file_hash": self.file_hash,
+            "file_size": self.file_size,
+            "line_count": self.line_count,
+            "language": self.language,
+            "complexity": self.complexity,
+            "vulnerability_score": self.vulnerability_score,
+            "quality_score": self.quality_score,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class ReviewHistory(Base):
@@ -154,10 +185,10 @@ class ReviewHistory(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     task_id = Column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(String(36), nullable=True)
+    user_id = Column(String(36), nullable=True)  # 未来支持多用户
     
     # 审查统计
-    review_duration = Column(Float, nullable=True)
+    review_duration = Column(Float, nullable=True)  # 秒
     total_issues = Column(Integer, nullable=True)
     critical_issues = Column(Integer, nullable=True)
     security_issues = Column(Integer, nullable=True)
@@ -171,7 +202,7 @@ class ReviewHistory(Base):
     readability_score = Column(Float, nullable=True)
     
     # 时间戳
-    reviewed_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    reviewed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     
     # 关系
     task = relationship("Task", foreign_keys=[task_id])
@@ -183,5 +214,21 @@ class ReviewHistory(Base):
         Index("idx_review_history_overall_score", "overall_score"),
     )
     
-    def __repr__(self):
-        return f"<ReviewHistory(task={self.task_id}, score={self.overall_score})>"
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "user_id": self.user_id,
+            "review_duration": self.review_duration,
+            "total_issues": self.total_issues,
+            "critical_issues": self.critical_issues,
+            "security_issues": self.security_issues,
+            "performance_issues": self.performance_issues,
+            "overall_score": self.overall_score,
+            "architecture_score": self.architecture_score,
+            "security_score": self.security_score,
+            "performance_score": self.performance_score,
+            "readability_score": self.readability_score,
+            "reviewed_at": self.reviewed_at.isoformat() if self.reviewed_at else None,
+        }
