@@ -1,0 +1,6 @@
+请 User_Proxy 执行 save_fixed_code 工具：
+{
+    "file_path": "fixed_example.py",
+    "fixed_content": "import json\\nfrom typing import Dict, List, Any\\nimport mysql.connector\\nfrom mysql.connector import pooling\\n\\nclass SafeDatabase:\\n    \\\"\\\"\\\"修复后的安全数据库类\\\"\\\"\\\"\\n    \\n    def __init__(self, config: Dict[str, Any]):\\n        self.pool = pooling.MySQLConnectionPool(\\n            pool_name=\\\"mypool\\\",\\n            pool_size=5,\\n            **config\\n        )\\n    \\n    def safe_query(self, query: str, params: tuple = ()) -> List[Dict]:\\n        '''使用参数化查询防止SQL注入'''\\n        conn = self.pool.get_connection()\\n        try:\\n            cursor = conn.cursor(dictionary=True)\\n            cursor.execute(query, params)\\n            return cursor.fetchall()\\n        finally:\\n            cursor.close()\\n            conn.close()",
+    "original_path": "example.py"
+}

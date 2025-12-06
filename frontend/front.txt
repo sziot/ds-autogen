@@ -1,0 +1,24 @@
+frontend/
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── index.html
+├── public/
+└── src/
+    ├── main.tsx
+    ├── App.tsx
+    ├── index.css
+    ├── vite-env.d.ts
+    ├── types/
+    │   └── index.ts
+    ├── components/
+    │   ├── layout/
+    │   ├── code/
+    │   ├── review/
+    │   └── common/
+    ├── pages/
+    ├── stores/
+    ├── services/
+    ├── hooks/
+    ├── utils/
+    └── theme/

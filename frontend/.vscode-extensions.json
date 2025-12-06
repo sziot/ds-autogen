@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next",
+    "ms-vscode.vscode-js-profile-flame",
+    "ms-vscode.vscode-typescript-tslint-plugin",
+    "ms-vscode.vscode-node-azure-pack",
+    "meganrogge.template-string-converter",
+    "formulahendry.auto-rename-tag",
+    "formulahendry.auto-close-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.live-server",
+    "ritwickdey.liveserver"
+  ]
+}

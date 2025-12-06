@@ -1,0 +1,16 @@
+Optimizer 智能体
+    ↓ (生成工具调用指令)
+    {
+        "function_call": {
+            "name": "save_fixed_code",
+            "arguments": "{\"file_path\":\"...\",\"fixed_content\":\"...\"}"
+        }
+    }
+    ↓
+User_Proxy 智能体
+    ↓ (解析并执行)
+    FixedCodeSaver.save_fixed_code(...)
+    ↓
+文件系统 (fixed/ 目录)
+    ↓ (返回结果)
+    {"status": "success", "file_path": "fixed/..."}

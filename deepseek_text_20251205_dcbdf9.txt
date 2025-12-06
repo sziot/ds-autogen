@@ -1,0 +1,34 @@
+
+## 前端集成示例（TypeScript）
+
+```typescript
+// 前端调用后端的示例
+interface ReviewResult {
+  architect_report: string;
+  reviewer_report: string;
+  optimized_code: string;
+  score: number;
+  saved_file: string;
+}
+
+async function submitCodeForReview(file: File): Promise<ReviewResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch('/api/code-review', {
+    method: 'POST',
+    body: formData
+  });
+  
+  const result: ReviewResult = await response.json();
+  
+  // 显示差异对比
+  displayDiff(file.name, result.optimized_code);
+  
+  // 提供下载链接
+  if (result.saved_file) {
+    createDownloadLink(result.saved_file);
+  }
+  
+  return result;
+}
