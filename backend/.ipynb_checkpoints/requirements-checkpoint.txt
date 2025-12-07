@@ -1,48 +1,20 @@
-# 核心框架
+# 最小化依赖
 fastapi==0.115.4
 uvicorn[standard]==0.32.0
 pydantic==2.10.3
+pydantic-settings==2.6.1
 python-multipart==0.0.16
 
-# 数据库
-sqlalchemy==2.0.36
-alembic==1.14.0
-asyncpg==0.30.0  # 用于PostgreSQL的异步驱动
+# AI/ML
+autogen==0.3.6
+openai==1.51.7
 
-# AI/ML 核心
-autogen==0.10.2
-openai==2.9.0
-transformers==4.45.0  # 用于模型加载和推理[citation:3][citation:6]
-accelerate==0.32.1  # 模型推理优化[citation:3]
-
-# 代码分析与安全
-bandit==1.8.2
-semgrep==1.74.0
-
-# 缓存与消息队列
-redis[hiredis]==5.2.0
-celery==5.4.0  # 用于异步任务队列
-
-# 文件与数据处理
-aiofiles==24.1.0
-pandas==2.2.3
-pygments==2.18.0  # 代码语法高亮
-
-# 工具与辅助
-python-dotenv==1.0.1
+# 工具库
 loguru==0.7.3
-click==8.1.8
+python-dotenv==1.0.1
 
-# 验证与安全
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-
-# 网络通信
+# WebSocket
 websockets==14.2
-httpx==0.28.1
 
-# 开发工具 (可根据需要调整)
-black==24.10.0
-mypy==1.12.0
-pytest==8.3.4
-pytest-asyncio==0.24.0
+# 可选：代码分析工具
+pygments==2.18.0
