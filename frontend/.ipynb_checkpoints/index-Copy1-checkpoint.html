@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek 代码审查系统</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; background: #f8f9fa; }
+        .card { margin-bottom: 20px; }
+        .progress { height: 10px; }
+        .agent-status { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">🧠 DeepSeek 代码审查系统</h1>
+        
+        <div id="root"></div>
+
+        <!-- 仅展示关键 script 部分（把原来直接请求 /upload /start /status 的 URL 改为后端实际路由 /api/v1/review/...） -->
+        <script type="text/babel">
+            const { useState, useEffect } = React;
+            
+            function App() {
+                const [file, setFile] = useState(null);
+                const [uploading, setUploading] = useState(false);
+                const [taskId, setTaskId] = useState('');
+                const [status, setStatus] = useState('等待上传');
+                const [progress, setProgress] = useState(0);
+                const [agents, setAgents] = useState([
+                    { name: '🏗️ Architect', status: '等待中', progress: 0 },
+                    { name: '🔍 Reviewer', status: '等待中', progress: 0 },
+                    { name: '⚡ Optimizer', status: '等待中', progress: 0 },
+                    { name: '💾 User_Proxy', status: '等待中', progress: 0 }
+                ]);
+                
+                // 文件选择处理
+                const handleFileSelect = (e) => {
+                    const selectedFile = e.target.files[0];
+                    if (selectedFile && selectedFile.name.endsWith('.py')) {
+                        setFile(selectedFile);
+                        setStatus('文件已选择: ' + selectedFile.name);
+                    } else {
+                        alert('请选择 .py 文件');
+                    }
+                };
+                
+                // 4. 文件上传
+                const uploadFile = async () => {
+                    if (!file) {
+                        alert('请先选择文件');
+                        return;
+                    }
+                    
+                    setUploading(true);
+                    setStatus('上传中...');
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    try {
+                        // 改为后端实际路径：POST /api/v1/review/upload
+                        const response = await fetch('http://localhost:8000/api/v1/review/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            setTaskId(result.task_id);
+                            setStatus('上传成功！任务ID: ' + result.task_id);
+                            alert('上传成功！点击"开始审查"按钮进行分析');
+                        } else {
+                            throw new Error(result.error || '上传失败');
+                        }
+                    } catch (error) {
+                        setStatus('上传失败: ' + error.message);
+                        alert('上传失败: ' + error.message);
+                    } finally {
+                        setUploading(false);
+                    }
+                };
+                
+                // 5. 开始审查
+                const startReview = async () => {
+                    if (!taskId) {
+                        alert('请先上传文件');
+                        return;
+                    }
+                    
+                    setStatus('开始审查...');
+                    setProgress(0);
+                    
+                    try {
+                        // start 路由期望 query 参数 task_id：POST /api/v1/review/start?task_id={task_id}
+                        const response = await fetch(`http://localhost:8000/api/v1/review/start?task_id=${encodeURIComponent(taskId)}`, {
+                            method: 'POST'
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            setStatus('审查已开始，正在处理中...');
+                            // 轮询状态
+                            pollStatus();
+                        } else {
+                            throw new Error(result.error || '启动失败');
+                        }
+                    } catch (error) {
+                        setStatus('启动失败: ' + error.message);
+                    }
+                };
+                
+                // 6. 轮询状态
+                const pollStatus = async () => {
+                    if (!taskId) return;
+                    
+                    try {
+                        // 改为后端实际 status 路由：GET /api/v1/review/status/{task_id}
+                        const response = await fetch(`http://localhost:8000/api/v1/review/status/${encodeURIComponent(taskId)}`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            setStatus(data.task?.message || '处理中');
+                            // 依据返回状态更新进度等
+                        } else {
+                            setStatus('查询状态失败');
+                        }
+                    } catch (error) {
+                        setStatus('查询状态失败: ' + error.message);
+                    }
+                };
+                
+                // 其余代码不变...
+            }
+        </script>
+
+    </div>
+</body>
+</html>
