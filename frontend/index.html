@@ -4,477 +4,328 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeepSeek 代码审查系统</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { padding: 20px; background: #f8f9fa; }
-        .card { margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .code-box { background: #f5f5f5; padding: 15px; border-radius: 5px; font-family: monospace; }
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .card { margin-bottom: 20px; }
+        .progress { height: 10px; }
+        .agent-status { margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- 头部 -->
-        <div class="text-center mb-4">
-            <h1 class="display-4">🧠 DeepSeek 智能代码审查</h1>
-            <p class="lead">上传您的代码，AI 自动分析、审查并优化</p>
-        </div>
-
-        <!-- 文件上传 -->
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">📤 1. 上传代码文件</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">选择代码文件</label>
-                    <input class="form-control" type="file" id="codeFile" accept=".py,.js,.ts,.java,.cpp,.c">
-                    <div class="form-text">支持 Python、JavaScript、TypeScript、Java、C/C++ 文件</div>
-                </div>
+        <h1 class="mb-4">🧠 DeepSeek 代码审查系统</h1>
+        
+        <div id="root"></div>
+        
+        <!-- 使用内联 Babel 编译 JSX -->
+        <script type="text/babel">
+            const { useState, useEffect } = React;
+            
+            function App() {
+                const [file, setFile] = useState(null);
+                const [uploading, setUploading] = useState(false);
+                const [taskId, setTaskId] = useState('');
+                const [status, setStatus] = useState('等待上传');
+                const [progress, setProgress] = useState(0);
+                const [agents, setAgents] = useState([
+                    { name: '🏗️ Architect', status: '等待中', progress: 0 },
+                    { name: '🔍 Reviewer', status: '等待中', progress: 0 },
+                    { name: '⚡ Optimizer', status: '等待中', progress: 0 },
+                    { name: '💾 User_Proxy', status: '等待中', progress: 0 }
+                ]);
                 
-                <div class="btn-group">
-                    <button class="btn btn-primary" onclick="uploadFile()" id="uploadBtn">
-                        上传文件
-                    </button>
-                    <button class="btn btn-success" onclick="startReview()" id="reviewBtn" disabled>
-                        开始审查
-                    </button>
-                    <button class="btn btn-info" onclick="viewResult()" id="resultBtn" disabled>
-                        查看结果
-                    </button>
-                    <button class="btn btn-secondary" onclick="clearAll()">
-                        重置
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 状态显示 -->
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">📊 2. 审查状态</h5>
-            </div>
-            <div class="card-body">
-                <div id="statusArea">
-                    <p>状态: <span id="statusText" class="text-muted">等待上传文件</span></p>
-                    <p>任务ID: <code id="taskId">-</code></p>
+                // 文件选择处理
+                const handleFileSelect = (e) => {
+                    const selectedFile = e.target.files[0];
+                    if (selectedFile && selectedFile.name.endsWith('.py')) {
+                        setFile(selectedFile);
+                        setStatus('文件已选择: ' + selectedFile.name);
+                    } else {
+                        alert('请选择 .py 文件');
+                    }
+                };
+                
+                // 上传文件
+                const uploadFile = async () => {
+                    if (!file) {
+                        alert('请先选择文件');
+                        return;
+                    }
                     
-                    <div class="mb-3">
-                        <label>总体进度</label>
-                        <div class="progress">
-                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                 style="width: 0%">0%</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 智能体状态 -->
-        <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0">🤖 3. 智能体协作状态</h5>
-            </div>
-            <div class="card-body">
-                <div class="row" id="agentsArea">
-                    <!-- 智能体状态将由JS动态生成 -->
-                </div>
-            </div>
-        </div>
-
-        <!-- 代码对比 -->
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">📝 4. 代码对比</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>原始代码</h6>
-                        <div class="code-box">
-                            <pre id="originalCode">等待上传...</pre>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>优化后代码</h6>
-                        <div class="code-box">
-                            <pre id="fixedCode">审查完成后显示...</pre>
-                        </div>
-                    </div>
-                </div>
+                    setUploading(true);
+                    setStatus('上传中...');
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    try {
+                        const response = await fetch('http://localhost:8000/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            setTaskId(result.task_id);
+                            setStatus('上传成功！任务ID: ' + result.task_id);
+                            alert('上传成功！点击"开始审查"按钮进行分析');
+                        } else {
+                            throw new Error(result.error || '上传失败');
+                        }
+                    } catch (error) {
+                        setStatus('上传失败: ' + error.message);
+                        alert('上传失败: ' + error.message);
+                    } finally {
+                        setUploading(false);
+                    }
+                };
                 
-                <div class="mt-3">
-                    <h6>优化建议</h6>
-                    <ul id="suggestions" class="list-group">
-                        <li class="list-group-item">上传代码后，AI会提供优化建议</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+                // 开始审查
+                const startReview = async () => {
+                    if (!taskId) {
+                        alert('请先上传文件');
+                        return;
+                    }
+                    
+                    setStatus('开始审查...');
+                    setProgress(0);
+                    
+                    try {
+                        const response = await fetch(`http://localhost:8000/start/${taskId}`, {
+                            method: 'POST'
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            setStatus('审查已开始，正在处理...');
+                            // 开始轮询状态
+                            pollStatus();
+                        } else {
+                            throw new Error(result.error || '启动失败');
+                        }
+                    } catch (error) {
+                        setStatus('启动失败: ' + error.message);
+                    }
+                };
+                
+                // 轮询状态
+                const pollStatus = async () => {
+                    if (!taskId) return;
+                    
+                    try {
+                        const response = await fetch(`http://localhost:8000/status/${taskId}`);
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            setStatus(data.task?.message || '处理中');
+                            setProgress(data.task?.progress || 0);
+                            
+                            // 更新智能体状态
+                            if (data.agents && data.agents.length > 0) {
+                                setAgents(agents.map((agent, index) => ({
+                                    ...agent,
+                                    status: data.agents[index]?.status || '等待中',
+                                    progress: data.agents[index]?.progress || 0
+                                })));
+                            }
+                            
+                            // 如果未完成，继续轮询
+                            if (data.task?.status === 'processing') {
+                                setTimeout(pollStatus, 2000);
+                            } else if (data.task?.status === 'completed') {
+                                setStatus('审查完成！');
+                                alert('代码审查完成！');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('轮询失败:', error);
+                        setTimeout(pollStatus, 5000);
+                    }
+                };
+                
+                // 查看结果
+                const viewResult = async () => {
+                    if (!taskId) {
+                        alert('请先完成任务');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`http://localhost:8000/result/${taskId}`);
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            const resultText = `
+文件: ${result.file_name}
+评分: ${result.quality_score}/10
+总结: ${result.summary}
 
-        <!-- 底部信息 -->
-        <div class="mt-4 text-center text-muted">
-            <p>后端API: <code>http://localhost:8000</code></p>
-            <p>系统状态: <span class="badge bg-success" id="apiStatus">后端未连接</span></p>
-            <button class="btn btn-sm btn-outline-secondary" onclick="testBackend()">
-                测试后端连接
-            </button>
-        </div>
-    </div>
+原始代码:
+${result.original_code}
 
-    <script>
-        // 全局变量
-        let currentTaskId = '';
-        let currentFileContent = '';
-        
-        // 页面加载时
-        document.addEventListener('DOMContentLoaded', function() {
-            testBackend();
-            initializeAgents();
-        });
-        
-        // 初始化智能体显示
-        function initializeAgents() {
-            const agents = [
-                { name: '🏗️ Architect', desc: '分析代码架构', color: 'primary' },
-                { name: '🔍 Reviewer', desc: '审查代码问题', color: 'danger' },
-                { name: '⚡ Optimizer', desc: '优化代码质量', color: 'success' },
-                { name: '💾 User_Proxy', desc: '保存修复文件', color: 'info' }
-            ];
-            
-            const agentsArea = document.getElementById('agentsArea');
-            agentsArea.innerHTML = '';
-            
-            agents.forEach(agent => {
-                const col = document.createElement('div');
-                col.className = 'col-md-3 col-sm-6 mb-3';
-                col.innerHTML = `
-                    <div class="card h-100 border-${agent.color}">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">${agent.name}</h6>
-                            <p class="card-text small">${agent.desc}</p>
-                            <span class="badge bg-secondary">等待中</span>
-                            <div class="progress mt-2" style="height: 5px;">
-                                <div class="progress-bar bg-${agent.color}" style="width: 0%"></div>
+修复后代码:
+${result.fixed_code}
+
+建议:
+${result.suggestions?.join('\n• ')}
+                            `;
+                            alert(resultText);
+                        } else {
+                            alert('获取结果失败: ' + (result.error || '未知错误'));
+                        }
+                    } catch (error) {
+                        alert('获取结果失败: ' + error.message);
+                    }
+                };
+                
+                // 查看所有任务
+                const viewTasks = async () => {
+                    try {
+                        const response = await fetch('http://localhost:8000/tasks');
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            let tasksText = '所有任务:\n\n';
+                            result.tasks.forEach(task => {
+                                tasksText += `ID: ${task.id}\n文件: ${task.file_name}\n状态: ${task.status}\n进度: ${task.progress}%\n创建时间: ${task.created_at}\n\n`;
+                            });
+                            alert(tasksText || '暂无任务');
+                        }
+                    } catch (error) {
+                        console.error('获取任务列表失败:', error);
+                    }
+                };
+                
+                return (
+                    <div>
+                        {/* 文件上传区域 */}
+                        <div className="card">
+                            <div className="card-body">
+                                <h5 className="card-title">📤 上传代码文件</h5>
+                                <div className="mb-3">
+                                    <input 
+                                        type="file" 
+                                        className="form-control" 
+                                        accept=".py,.js,.ts,.java"
+                                        onChange={handleFileSelect}
+                                        disabled={uploading}
+                                    />
+                                    <div className="form-text">
+                                        支持: .py .js .ts .java 文件
+                                    </div>
+                                </div>
+                                
+                                <div className="d-flex gap-2">
+                                    <button 
+                                        className="btn btn-primary"
+                                        onClick={uploadFile}
+                                        disabled={!file || uploading}
+                                    >
+                                        {uploading ? '上传中...' : '上传文件'}
+                                    </button>
+                                    
+                                    <button 
+                                        className="btn btn-success"
+                                        onClick={startReview}
+                                        disabled={!taskId || progress > 0}
+                                    >
+                                        开始审查
+                                    </button>
+                                    
+                                    <button 
+                                        className="btn btn-info"
+                                        onClick={viewResult}
+                                        disabled={progress < 100}
+                                    >
+                                        查看结果
+                                    </button>
+                                    
+                                    <button 
+                                        className="btn btn-secondary"
+                                        onClick={viewTasks}
+                                    >
+                                        查看所有任务
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* 状态显示 */}
+                        <div className="card">
+                            <div className="card-body">
+                                <h5 className="card-title">📊 当前状态</h5>
+                                <p className="card-text">
+                                    <strong>状态:</strong> {status}
+                                </p>
+                                
+                                {taskId && (
+                                    <p className="card-text">
+                                        <strong>任务ID:</strong> <code>{taskId}</code>
+                                    </p>
+                                )}
+                                
+                                <div className="mb-3">
+                                    <strong>进度:</strong>
+                                    <div className="progress mt-2">
+                                        <div 
+                                            className="progress-bar progress-bar-striped progress-bar-animated" 
+                                            style={{ width: `${progress}%` }}
+                                        >
+                                            {progress}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* 智能体状态 */}
+                        <div className="card">
+                            <div className="card-body">
+                                <h5 className="card-title">🤖 智能体状态</h5>
+                                {agents.map((agent, index) => (
+                                    <div key={index} className="agent-status">
+                                        <div className="d-flex justify-content-between">
+                                            <span>{agent.name}</span>
+                                            <span className={`badge ${agent.status === 'completed' ? 'bg-success' : agent.status === 'processing' ? 'bg-warning' : 'bg-secondary'}`}>
+                                                {agent.status}
+                                            </span>
+                                        </div>
+                                        <div className="progress" style={{ height: '5px' }}>
+                                            <div 
+                                                className="progress-bar" 
+                                                style={{ width: `${agent.progress}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        {/* 系统信息 */}
+                        <div className="card">
+                            <div className="card-body">
+                                <h5 className="card-title">ℹ️ 系统信息</h5>
+                                <ul>
+                                    <li>后端API: http://localhost:8000</li>
+                                    <li>无需数据库，内存存储</li>
+                                    <li>智能体协作: Architect → Reviewer → Optimizer</li>
+                                    <li>自动保存修复后的代码到 fixed/ 目录</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
-                `;
-                agentsArea.appendChild(col);
-            });
-        }
-        
-        // 测试后端连接
-        async function testBackend() {
-            const statusElement = document.getElementById('apiStatus');
-            try {
-                const response = await fetch('http://localhost:8000/');
-                if (response.ok) {
-                    statusElement.className = 'badge bg-success';
-                    statusElement.textContent = '后端连接正常';
-                } else {
-                    throw new Error('后端响应异常');
-                }
-            } catch (error) {
-                statusElement.className = 'badge bg-danger';
-                statusElement.textContent = '后端连接失败';
-                console.error('后端连接失败:', error);
-            }
-        }
-        
-        // 上传文件
-        async function uploadFile() {
-            const fileInput = document.getElementById('codeFile');
-            const uploadBtn = document.getElementById('uploadBtn');
-            const reviewBtn = document.getElementById('reviewBtn');
-            
-            if (!fileInput.files[0]) {
-                alert('请先选择文件');
-                return;
+                );
             }
             
-            const file = fileInput.files[0];
-            const fileExt = file.name.split('.').pop().toLowerCase();
-            const allowedExts = ['py', 'js', 'ts', 'java', 'cpp', 'c'];
-            
-            if (!allowedExts.includes(fileExt)) {
-                alert('不支持的文件类型，请上传代码文件');
-                return;
-            }
-            
-            // 读取文件内容
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                currentFileContent = e.target.result;
-                document.getElementById('originalCode').textContent = currentFileContent;
-                
-                // 显示上传状态
-                updateStatus('正在上传文件...', 10);
-                uploadBtn.disabled = true;
-                uploadBtn.textContent = '上传中...';
-                
-                // 准备上传
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                try {
-                    const response = await fetch('http://localhost:8000/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        currentTaskId = result.task_id;
-                        document.getElementById('taskId').textContent = currentTaskId;
-                        updateStatus('文件上传成功！', 25);
-                        reviewBtn.disabled = false;
-                        uploadBtn.textContent = '上传成功 ✓';
-                        
-                        // 更新智能体状态
-                        updateAgentStatus(0, '准备就绪', 25);
-                    } else {
-                        throw new Error(result.error || '上传失败');
-                    }
-                } catch (error) {
-                    updateStatus('上传失败: ' + error.message, 0);
-                    uploadBtn.disabled = false;
-                    uploadBtn.textContent = '上传文件';
-                }
-            };
-            
-            reader.readAsText(file);
-        }
-        
-        // 开始审查
-        async function startReview() {
-            if (!currentTaskId) {
-                alert('请先上传文件');
-                return;
-            }
-            
-            updateStatus('开始代码审查...', 30);
-            document.getElementById('reviewBtn').disabled = true;
-            document.getElementById('reviewBtn').textContent = '审查中...';
-            document.getElementById('resultBtn').disabled = true;
-            
-            // 模拟智能体协作过程
-            simulateAgentWork();
-            
-            // 实际调用后端API
-            try {
-                const response = await fetch(`http://localhost:8000/start/${currentTaskId}`, {
-                    method: 'POST'
-                });
-                
-                const result = await response.json();
-                
-                if (!result.success) {
-                    console.error('启动审查失败:', result.error);
-                }
-                
-                // 开始轮询状态
-                pollTaskStatus();
-                
-            } catch (error) {
-                console.error('启动失败:', error);
-            }
-        }
-        
-        // 模拟智能体工作
-        function simulateAgentWork() {
-            const agents = [
-                { index: 0, name: 'Architect', time: 2000 },
-                { index: 1, name: 'Reviewer', time: 3000 },
-                { index: 2, name: 'Optimizer', time: 2500 },
-                { index: 3, name: 'User_Proxy', time: 1500 }
-            ];
-            
-            let currentProgress = 30;
-            
-            agents.forEach((agent, i) => {
-                setTimeout(() => {
-                    updateAgentStatus(agent.index, '处理中', currentProgress);
-                    currentProgress += 15;
-                    
-                    setTimeout(() => {
-                        updateAgentStatus(agent.index, '已完成', currentProgress);
-                        updateStatus(`${agent.name} 完成`, currentProgress);
-                        
-                        if (i === agents.length - 1) {
-                            document.getElementById('resultBtn').disabled = false;
-                            updateStatus('代码审查完成！', 100);
-                            showMockResult();
-                        }
-                    }, agent.time);
-                }, i * 1000);
-            });
-        }
-        
-        // 轮询任务状态
-        async function pollTaskStatus() {
-            if (!currentTaskId) return;
-            
-            try {
-                const response = await fetch(`http://localhost:8000/status/${currentTaskId}`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    // 更新进度
-                    const progress = result.task?.progress || 0;
-                    updateStatus(result.task?.message || '处理中', progress);
-                    
-                    // 更新智能体状态
-                    if (result.agents && result.agents.length > 0) {
-                        result.agents.forEach((agent, index) => {
-                            updateAgentStatus(index, agent.status, agent.progress);
-                        });
-                    }
-                    
-                    // 如果未完成，继续轮询
-                    if (result.task?.status === 'processing') {
-                        setTimeout(pollTaskStatus, 2000);
-                    } else if (result.task?.status === 'completed') {
-                        document.getElementById('resultBtn').disabled = false;
-                    }
-                }
-            } catch (error) {
-                console.log('轮询失败，使用模拟数据');
-                setTimeout(pollTaskStatus, 5000);
-            }
-        }
-        
-        // 查看结果
-        async function viewResult() {
-            if (!currentTaskId) {
-                alert('请先完成任务');
-                return;
-            }
-            
-            updateStatus('获取审查结果...', 100);
-            
-            try {
-                const response = await fetch(`http://localhost:8000/result/${currentTaskId}`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    showResult(result);
-                } else {
-                    // 如果后端没有真实结果，显示模拟结果
-                    showMockResult();
-                }
-            } catch (error) {
-                console.error('获取结果失败，显示模拟结果:', error);
-                showMockResult();
-            }
-        }
-        
-        // 显示模拟结果（用于演示）
-        function showMockResult() {
-            const suggestions = [
-                '添加函数文档字符串 (docstring)',
-                '优化变量命名，提高可读性',
-                '添加错误处理机制',
-                '分离关注点，提高模块化',
-                '添加类型注解'
-            ];
-            
-            const fixedCode = currentFileContent + '\n\n# 🚀 AI 优化建议已应用\n# 1. 添加了文档字符串\n# 2. 优化了代码结构\n# 3. 提高了代码可读性';
-            
-            document.getElementById('fixedCode').textContent = fixedCode;
-            
-            const suggestionsList = document.getElementById('suggestions');
-            suggestionsList.innerHTML = '';
-            
-            suggestions.forEach(suggestion => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item list-group-item-success';
-                li.textContent = '✓ ' + suggestion;
-                suggestionsList.appendChild(li);
-            });
-            
-            updateStatus('审查完成！质量评分: 8.5/10', 100);
-        }
-        
-        // 显示真实结果
-        function showResult(result) {
-            if (result.fixed_code) {
-                document.getElementById('fixedCode').textContent = result.fixed_code;
-            }
-            
-            if (result.suggestions) {
-                const suggestionsList = document.getElementById('suggestions');
-                suggestionsList.innerHTML = '';
-                
-                if (Array.isArray(result.suggestions)) {
-                    result.suggestions.forEach(suggestion => {
-                        const li = document.createElement('li');
-                        li.className = 'list-group-item list-group-item-success';
-                        li.textContent = '✓ ' + suggestion;
-                        suggestionsList.appendChild(li);
-                    });
-                }
-            }
-            
-            updateStatus(`审查完成！质量评分: ${result.quality_score || 'N/A'}/10`, 100);
-        }
-        
-        // 更新状态
-        function updateStatus(message, progress) {
-            document.getElementById('statusText').textContent = message;
-            document.getElementById('statusText').className = progress === 100 ? 'text-success' : 'text-primary';
-            
-            const progressBar = document.getElementById('progressBar');
-            progressBar.style.width = progress + '%';
-            progressBar.textContent = progress + '%';
-            progressBar.className = `progress-bar progress-bar-striped ${progress === 100 ? '' : 'progress-bar-animated'}`;
-        }
-        
-        // 更新智能体状态
-        function updateAgentStatus(index, status, progress) {
-            const agentCards = document.querySelectorAll('#agentsArea .card');
-            if (agentCards[index]) {
-                const badge = agentCards[index].querySelector('.badge');
-                const progressBar = agentCards[index].querySelector('.progress-bar');
-                
-                if (badge) {
-                    badge.textContent = status;
-                    badge.className = 'badge ' + (
-                        status === '已完成' ? 'bg-success' :
-                        status === '处理中' ? 'bg-warning' :
-                        'bg-secondary'
-                    );
-                }
-                
-                if (progressBar) {
-                    progressBar.style.width = progress + '%';
-                }
-            }
-        }
-        
-        // 重置所有
-        function clearAll() {
-            currentTaskId = '';
-            currentFileContent = '';
-            
-            document.getElementById('codeFile').value = '';
-            document.getElementById('taskId').textContent = '-';
-            document.getElementById('originalCode').textContent = '等待上传...';
-            document.getElementById('fixedCode').textContent = '审查完成后显示...';
-            
-            document.getElementById('uploadBtn').disabled = false;
-            document.getElementById('uploadBtn').textContent = '上传文件';
-            document.getElementById('reviewBtn').disabled = true;
-            document.getElementById('reviewBtn').textContent = '开始审查';
-            document.getElementById('resultBtn').disabled = true;
-            
-            updateStatus('等待上传文件', 0);
-            initializeAgents();
-            
-            const suggestionsList = document.getElementById('suggestions');
-            suggestionsList.innerHTML = '<li class="list-group-item">上传代码后，AI会提供优化建议</li>';
-        }
-    </script>
+            // 渲染应用
+            ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        </script>
+    </div>
 </body>
 </html>

@@ -1,13 +1,7 @@
-极简方案，前端只有一个index.html文件
-模拟的审核流程 mock_code_review_pipline
+代码审查系统
+简化版，不连数据库
 
-启动：
-cd backend
-python main.py
-cd frontend
-python -m http.server 8080
-访问 http://localhost:8080
-
+项目结构
 deepseek-code-review/
 ├── main.py                    # 主应用文件
 ├── requirements.txt           # 依赖文件
@@ -26,6 +20,6 @@ deepseek-code-review/
     │   ├── __init__.py
     │   ├── routers/
     │   │   ├── __init__.py
-    │   │   └── review_simple.py    # 简化路由模拟的审核流程mock
+    │   │   └── review_simple.py    # 简化路由
     │   └── websocket_manager.py    # WebSocket管理
     └── utils/                # 工具函数（可选）
