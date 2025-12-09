@@ -1,4 +1,4 @@
-# 最小化依赖
+# Web框架
 fastapi==0.115.4
 uvicorn[standard]==0.32.0
 pydantic==2.10.3
