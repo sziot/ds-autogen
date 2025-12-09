@@ -58,7 +58,7 @@ async def upload_code_file(
         
         # 发送WebSocket通知
         ws_manager = get_websocket_manager()
-        await ws_manager.broadcast_to_task(
+        await ws_manager.send_to_task(
             task_id,
             {
                 "type": "upload_complete",
@@ -254,7 +254,7 @@ async def mock_code_review_pipeline(task_id: str):
             )
             
             # 发送WebSocket通知
-            await ws_manager.broadcast_to_task(
+            await ws_manager.send_to_task(
                 task_id,
                 {
                     "type": "agent_update",
@@ -302,7 +302,7 @@ async def mock_code_review_pipeline(task_id: str):
         await task_service.update_task_result(task_id, result)
         
         # 发送完成通知
-        await ws_manager.broadcast_to_task(
+        await ws_manager.send_to_task(
             task_id,
             {
                 "type": "result",
@@ -323,7 +323,7 @@ async def mock_code_review_pipeline(task_id: str):
             message=f"审查失败: {str(e)}"
         )
         
-        await ws_manager.broadcast_to_task(
+        await ws_manager.send_to_task(
             task_id,
             {
                 "type": "error",

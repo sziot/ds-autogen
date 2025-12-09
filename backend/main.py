@@ -127,7 +127,7 @@ async def api_info():
         "version": settings.VERSION,
         "description": settings.DESCRIPTION,
         "endpoints": {
-            "upload": "POST /api/v1/review/upload",
+            "upload": "POST /api/v1/review",
             "start_review": "POST /api/v1/review/start?task_id={task_id}",
             "get_status": "GET /api/v1/review/status/{task_id}",
             "get_result": "GET /api/v1/review/result/{task_id}",

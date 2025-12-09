@@ -6,8 +6,8 @@ pydantic-settings==2.6.1
 python-multipart==0.0.16
 
 # AI/ML
-autogen==0.3.6
-openai==1.51.7
+autogen==0.10.2
+openai==2.9.0
 
 # 工具库
 loguru==0.7.3

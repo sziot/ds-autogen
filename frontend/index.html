@@ -63,7 +63,7 @@
                     formData.append('file', file);
                     
                     try {
-                        const response = await fetch('http://localhost:8000/api/v1/review/upload', {
+                        const response = await fetch('http://localhost:8000/api/v1/review', {
                             method: 'POST',
                             body: formData
                         });
@@ -193,7 +193,13 @@ ${result.suggestions?.join('\n• ')}
                         if (result.success) {
                             let tasksText = '所有任务:\n\n';
                             result.tasks.forEach(task => {
-                                tasksText += `ID: ${task.id}\n文件: ${task.file_name}\n状态: ${task.status}\n进度: ${task.progress}%\n创建时间: ${task.created_at}\n\n`;
+                                tasksText += `ID: ${task.id}
+文件: ${task.file_name}
+状态: ${task.status}
+进度: ${task.progress}%
+创建时间: ${task.created_at}
+
+`;
                             });
                             alert(tasksText || '暂无任务');
                         }

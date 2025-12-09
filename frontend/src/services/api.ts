@@ -45,13 +45,13 @@ class ApiService {
     );
   }
 
-  // 上传代码文件 -> POST /api/v1/review/upload
+  // 上传代码文件 -> POST /api/v1/review
   async uploadCodeFile(file: File): Promise<ApiResponse<UploadResponse>> {
     const formData = new FormData();
     formData.append('file', file);
 
-    // 现在 baseURL 已包含 /api/v1，所以这里使用 /review/upload
-    return this.client.post('/review/upload', formData, {
+    // 后端路由是 /review（前缀 /api/v1/review 已包含在 baseURL 中）
+    return this.client.post('/review', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -90,3 +90,59 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+
+interface ReviewResult {
+  taskId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  originalCode?: string;
+  improvedCode?: string;
+  comments?: ReviewComment[];
+  error?: string;
+}
+
+export const uploadAndReview = async (file: File): Promise<{ taskId: string }> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/v1/review', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`HTTP Error ${response.status}: ${errorText}`);
+      throw new Error(`Server error (${response.status}): ${errorText || response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    console.error('Network or parsing error:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network connection failed. Please check if the server is running.');
+    }
+    throw error;
+  }
+};
+
+export const getReviewResult = async (taskId: string): Promise<ReviewResult> => {
+  try {
+    const response = await fetch(`/api/v1/review/${taskId}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`HTTP Error ${response.status}: ${errorText}`);
+      throw new Error(`Server error (${response.status}): ${errorText || response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error: any) {
+    console.error('Network or parsing error:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network connection failed. Please check if the server is running.');
+    }
+    throw error;
+  }
+};

@@ -1,91 +1,97 @@
 import { create } from 'zustand';
-import { ReviewTask, CodeReviewResult, AgentStatus } from '../types';
+import { persist } from 'zustand/middleware';
+import { getReviewResult } from '../services/api';
 
-interface ReviewState {
-  // 当前任务
-  currentTask: ReviewTask | null;
-  
-  // 历史任务
-  historyTasks: ReviewTask[];
-  
-  // 正在处理的任务
-  processingTasks: ReviewTask[];
-  
-  // WebSocket 连接状态
-  wsConnected: boolean;
-  
-  // Actions
-  setCurrentTask: (task: ReviewTask | null) => void;
-  addHistoryTask: (task: ReviewTask) => void;
-  updateTaskProgress: (taskId: string, updates: Partial<ReviewTask>) => void;
-  updateAgentStatus: (taskId: string, agentName: string, status: Partial<AgentStatus>) => void;
-  setWsConnected: (connected: boolean) => void;
-  
-  // 工具函数
-  getTaskById: (taskId: string) => ReviewTask | undefined;
-  clearCompletedTasks: () => void;
+export interface ReviewComment {
+  line: number;
+  comment: string;
+  type: 'error' | 'warning' | 'info' | 'style';
 }
 
-export const useReviewStore = create<ReviewState>((set, get) => ({
-  currentTask: null,
-  historyTasks: [],
-  processingTasks: [],
-  wsConnected: false,
+interface ReviewState {
+  taskId: string | null;
+  originalCode: string;
+  improvedCode: string;
+  reviewResult: {
+    comments: ReviewComment[];
+  } | null;
+  agentStatus: 'idle' | 'running' | 'completed' | 'error';
+  error: string | null;
+  setOriginalCode: (code: string) => void;
+  setImprovedCode: (code: string) => void;
+  startReview: (taskId: string) => void;
+  pollReviewResult: (taskId: string) => Promise<void>;
+  resetReview: () => void;
+}
 
-  setCurrentTask: (task) => set({ currentTask: task }),
-
-  addHistoryTask: (task) => 
-    set((state) => ({ 
-      historyTasks: [task, ...state.historyTasks] 
-    })),
-
-  updateTaskProgress: (taskId, updates) =>
-    set((state) => ({
-      processingTasks: state.processingTasks.map(task =>
-        task.id === taskId ? { ...task, ...updates } : task
-      ),
-      historyTasks: state.historyTasks.map(task =>
-        task.id === taskId ? { ...task, ...updates } : task
-      ),
-      currentTask: state.currentTask?.id === taskId 
-        ? { ...state.currentTask, ...updates } 
-        : state.currentTask,
-    })),
-
-  updateAgentStatus: (taskId, agentName, agentUpdates) =>
-    set((state) => {
-      const updateTaskAgents = (task: ReviewTask) => ({
-        ...task,
-        agents: task.agents.map(agent =>
-          agent.name === agentName ? { ...agent, ...agentUpdates } : agent
-        ),
-      });
-
-      return {
-        processingTasks: state.processingTasks.map(task =>
-          task.id === taskId ? updateTaskAgents(task) : task
-        ),
-        currentTask: state.currentTask?.id === taskId 
-          ? updateTaskAgents(state.currentTask) 
-          : state.currentTask,
-      };
+export const useReviewStore = create<ReviewState>()(
+  persist(
+    (set, get) => ({
+      taskId: null,
+      originalCode: '',
+      improvedCode: '',
+      reviewResult: null,
+      agentStatus: 'idle',
+      error: null,
+      
+      setOriginalCode: (code) => set({ originalCode: code }),
+      setImprovedCode: (code) => set({ improvedCode: code }),
+      
+      startReview: (taskId) => set({ 
+        taskId, 
+        agentStatus: 'running',
+        error: null
+      }),
+      
+      pollReviewResult: async (taskId) => {
+        try {
+          const result = await getReviewResult(taskId);
+          
+          switch (result.status) {
+            case 'completed':
+              set({
+                agentStatus: 'completed',
+                originalCode: result.originalCode || '',
+                improvedCode: result.improvedCode || '',
+                reviewResult: {
+                  comments: result.comments || []
+                }
+              });
+              break;
+              
+            case 'failed':
+              set({
+                agentStatus: 'error',
+                error: result.error || 'Review failed'
+              });
+              break;
+              
+            case 'pending':
+            case 'processing':
+              // Continue polling
+              setTimeout(() => get().pollReviewResult(taskId), 1000);
+              break;
+          }
+        } catch (error: any) {
+          console.error('Error polling review result:', error);
+          set({
+            agentStatus: 'error',
+            error: error.message || 'Failed to get review result'
+          });
+        }
+      },
+      
+      resetReview: () => set({
+        taskId: null,
+        originalCode: '',
+        improvedCode: '',
+        reviewResult: null,
+        agentStatus: 'idle',
+        error: null
+      })
     }),
-
-  setWsConnected: (connected) => set({ wsConnected: connected }),
-
-  getTaskById: (taskId) => {
-    const state = get();
-    return (
-      state.currentTask?.id === taskId ? state.currentTask :
-      state.processingTasks.find(t => t.id === taskId) ||
-      state.historyTasks.find(t => t.id === taskId)
-    );
-  },
-
-  clearCompletedTasks: () =>
-    set((state) => ({
-      historyTasks: state.historyTasks.filter(task => 
-        task.status !== 'completed' && task.status !== 'failed'
-      ),
-    })),
-}));
+    {
+      name: 'review-storage',
+    }
+  )
+);
